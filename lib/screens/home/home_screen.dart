@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
-import '../../widgets/nutrition_card.dart';
+import '../../models/nutrition_summary.dart';
+import '../../widgets/nutrition_overview.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -61,20 +62,7 @@ class _Dashboard extends StatelessWidget {
           const SizedBox(height: 28),
           Text("Today's nutrition", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.25,
-            children: const [
-              NutritionCard(icon: Icons.local_fire_department_outlined, label: 'Calories', value: '860 kcal', goal: '2000 kcal', color: Colors.orange),
-              NutritionCard(icon: Icons.fitness_center_outlined, label: 'Protein', value: '34 g', goal: '75 g', color: Colors.blue),
-              NutritionCard(icon: Icons.icecream_outlined, label: 'Sugar', value: '21 g', goal: '30 g', color: Colors.pink),
-              NutritionCard(icon: Icons.directions_walk_rounded, label: 'Activity', value: '3200', goal: '8000 steps', color: AppTheme.primaryGreen),
-            ],
-          ),
+          const NutritionOverview(summary: NutritionSummary(calories: 860, protein: 34, sugar: 21)),
           const SizedBox(height: 28),
           Text("Today's insight", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
