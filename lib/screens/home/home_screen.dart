@@ -5,7 +5,8 @@ import '../../models/nutrition_summary.dart';
 import '../../widgets/nutrition_overview.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.embedded = false});
+  final bool embedded;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -15,7 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => widget.embedded ? const _Dashboard() : Scaffold(
         body: SafeArea(child: _tab == 0 ? const _Dashboard() : _PlaceholderPage(tab: _tab)),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tab,

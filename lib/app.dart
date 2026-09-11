@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/app_theme.dart';
-import 'screens/home/home_screen.dart';
+import 'screens/splash/splash_screen.dart';
 
 class Scan2HealthApp extends StatelessWidget {
   const Scan2HealthApp({super.key});
@@ -11,6 +11,6 @@ class Scan2HealthApp extends StatelessWidget {
         title: 'Scan2Health',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const HomeScreen(),
+        home: const SplashScreen(),
       );
 }
