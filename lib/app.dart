@@ -8,9 +8,9 @@ class Scan2HealthApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Scan2Health',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const SplashScreen(),
-      );
+    title: 'Scan2Health',
+    debugShowCheckedModeBanner: false,
+    theme: AppTheme.lightTheme,
+    home: const SplashScreen(),
+  );
 }
