@@ -10,6 +10,25 @@ class AuthService {
   User? get currentUser => _firebaseAuth.currentUser;
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
+  Future<String?> getIdToken() async {
+  final user = _firebaseAuth.currentUser;
+
+  if (user == null) {
+    print('No Firebase user is currently signed in.');
+    return null;
+  }
+
+  final token = await user.getIdToken(true);
+
+  print('========== FIREBASE ID TOKEN ==========');
+  print(token);
+  print('Token parts: ${token?.split('.').length}');
+  print('Token length: ${token?.length}');
+  print('=======================================');
+
+  return token;
+}
+
   Future<UserCredential> register({
     required String email,
     required String password,
