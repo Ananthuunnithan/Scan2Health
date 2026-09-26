@@ -3,6 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const profileRoutes = require('./routes/profileRoutes');
+const healthConditionRoutes = require("./routes/healthConditionRoutes");
+const nutritionalRuleRoutes = require('./routes/nutritionalRuleRoutes');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -17,6 +20,24 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.use('/api/profile', profileRoutes);
+
+
+app.use(
+  "/api/health-conditions",
+  healthConditionRoutes
+);
+
+app.use(
+  '/api/nutritional-rules',
+  nutritionalRuleRoutes
+);
+
+app.use((error, req, res, next) => {
+  console.error('Unhandled API error:', error);
+  res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
+});
+
 const startServer = async () => {
   try {
     await connectDB();
@@ -29,4 +50,6 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (require.main === module) startServer();
+
+module.exports = app;
