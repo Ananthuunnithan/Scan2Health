@@ -21,6 +21,15 @@ const NUTRIENTS = [
   'folate'
 ];
 
+const FOOD_COMPONENTS = [
+  'peanut',
+  'soy',
+  'milk',
+  'egg',
+  'lactose',
+  'gluten'
+];
+
 const OPERATORS = [
   'GREATER_THAN',
   'GREATER_THAN_OR_EQUAL',
@@ -65,39 +74,58 @@ const nutritionalRuleSchema = new mongoose.Schema(
 
     nutrient: {
       type: String,
-      required: true,
+      required: function () {
+      return this.ruleType === 'NUTRIENT_THRESHOLD';
+      },
       enum: NUTRIENTS,
+      trim: true
+    },
+
+    component: {
+      type: String,
+      required: function () {
+        return this.ruleType === 'FOOD_PROFILE';
+      },
+      enum: FOOD_COMPONENTS,
       trim: true
     },
 
     operator: {
       type: String,
-      required: true,
+      required: function () {
+        return this.ruleType === 'NUTRIENT_THRESHOLD';
+      },
       enum: OPERATORS
     },
 
     threshold: {
       type: Number,
-      required: true
+      required: function () {
+        return this.ruleType === 'NUTRIENT_THRESHOLD';
+      }
     },
 
     unit: {
       type: String,
-      required: true,
+      required: function () {
+        return this.ruleType === 'NUTRIENT_THRESHOLD';
+      },
       trim: true
     },
 
     basis: {
-  type: String,
-  required: true,
-  enum: [
-    'PER_100G',
-    'PER_100ML',
-    'PER_SERVING',
-    'PER_PACKAGE',
-    'DAILY'
-  ]
-},
+      type: String,
+      required: function () {
+        return this.ruleType === 'NUTRIENT_THRESHOLD';
+      },
+      enum: [
+        'PER_100G',
+        'PER_100ML',
+        'PER_SERVING',
+        'PER_PACKAGE',
+        'DAILY'
+      ]
+    },
 
     severity: {
       type: String,
@@ -157,6 +185,7 @@ module.exports = NutritionalRule;
 
 module.exports.options = {
   NUTRIENTS,
+  FOOD_COMPONENTS,
   OPERATORS,
   SEVERITIES,
   ACTIONS

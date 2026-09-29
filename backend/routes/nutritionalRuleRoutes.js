@@ -9,6 +9,44 @@ const router = express.Router();
 
 router.use(authenticateFirebase);
 
+router.post('/', async (req, res, next) => {
+  try {
+    const ruleData = req.body;
+
+    /*
+     * Make sure the referenced health condition exists.
+     */
+    const condition = await HealthCondition.findOne({
+      code: ruleData.conditionCode.trim().toUpperCase(),
+      active: true
+    }).lean();
+
+    if (!condition) {
+      return res.status(400).json({
+        success: false,
+        message: 'Health condition not found.'
+      });
+    }
+
+    /*
+     * Create the nutritional rule.
+     */
+    const rule = await NutritionalRule.create({
+      ...ruleData,
+      conditionCode: ruleData.conditionCode.trim().toUpperCase()
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Nutritional rule created successfully.',
+      rule
+    });
+
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const filter = {
