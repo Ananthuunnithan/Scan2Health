@@ -6,6 +6,8 @@ const connectDB = require('./config/db');
 const profileRoutes = require('./routes/profileRoutes');
 const healthConditionRoutes = require("./routes/healthConditionRoutes");
 const nutritionalRuleRoutes = require('./routes/nutritionalRuleRoutes');
+const productRoutes = require('./routes/productRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -32,6 +34,13 @@ app.use(
   '/api/nutritional-rules',
   nutritionalRuleRoutes
 );
+
+app.use(
+  '/api/products',
+  productRoutes
+);
+
+app.use('/api/assessment', assessmentRoutes);
 
 app.use((error, req, res, next) => {
   console.error('Unhandled API error:', error);
