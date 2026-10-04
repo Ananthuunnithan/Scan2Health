@@ -97,7 +97,20 @@ async function evaluateProductForUser({
       barcode: product.barcode,
       productName: product.productName,
       brand: product.brand,
-      nutritionBasis: product.nutritionBasis
+      nutritionBasis: product.nutritionBasis,
+
+      nutrition: product.nutrition || {},
+
+      serving: product.serving || {},
+
+      ingredients: product.ingredients || {
+        text: '',
+        normalized: []
+      },
+
+      foodComponents: product.foodComponents || [],
+
+      allergens: product.allergens || []
     },
 
     allergyFindings,
