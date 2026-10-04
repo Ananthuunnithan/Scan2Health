@@ -55,7 +55,9 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('Server startup aborted because MongoDB could not connect.');
-    process.exit(1);
+  console.error('Actual MongoDB error:', error.message);
+  console.error(error);
+  process.exit(1);
   }
 };
 

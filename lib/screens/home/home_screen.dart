@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../models/nutrition_summary.dart';
 import '../../widgets/nutrition_overview.dart';
+import '../scan/scan_screen.dart';
+import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.embedded = false});
@@ -17,7 +19,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) => widget.embedded ? const _Dashboard() : Scaffold(
-        body: SafeArea(child: _tab == 0 ? const _Dashboard() : _PlaceholderPage(tab: _tab)),
+    body: SafeArea(
+      child: _tab == 0
+          ? const _Dashboard()
+          : _tab == 1
+              ? const ScanScreen()
+              : _tab == 2
+                  ? const _PlaceholderPage(tab: 2)
+                  : const ProfileScreen(),
+    ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tab,
           onDestinationSelected: (value) => setState(() => _tab = value),
