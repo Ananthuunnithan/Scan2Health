@@ -12,8 +12,7 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  final TextEditingController _barcodeController =
-      TextEditingController();
+  final TextEditingController _barcodeController = TextEditingController();
 
   bool _isAnalyzing = false;
 
@@ -24,60 +23,58 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _analyzeProduct() async {
-  final barcode = _barcodeController.text.trim();
+    final barcode = _barcodeController.text.trim();
 
-  if (barcode.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please enter a product barcode.'),
-      ),
-    );
-    return;
-  }
+    if (barcode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a product barcode.')),
+      );
+      return;
+    }
 
-  setState(() {
-    _isAnalyzing = true;
-  });
+    setState(() {
+      _isAnalyzing = true;
+    });
 
-  try {
-    final result = await AssessmentService.assessProduct(barcode);
+    try {
+      final result = await AssessmentService.assessProduct(barcode);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AssessmentPreviewScreen(
-          barcode: barcode,
-          assessment: result['assessment'],
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AssessmentPreviewScreen(
+            barcode: barcode,
+            assessment: Map<String, dynamic>.from(result['assessment'] as Map),
+            recommendations: result['recommendations'] as List<dynamic>? ?? [],
+            aiExplanation: result['aiExplanation'] is Map
+                ? Map<String, dynamic>.from(result['aiExplanation'] as Map)
+                : null,
+          ),
         ),
-      ),
-    );
-  } catch (error) {
-    if (!mounted) return;
+      );
+    } catch (error) {
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          error.toString().replaceFirst('Exception: ', ''),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
         ),
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isAnalyzing = false;
-      });
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan Food'),
-      ),
+      appBar: AppBar(title: const Text('Scan Food')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -125,12 +122,8 @@ class _ScanScreenState extends State<ScanScreen> {
                       const SizedBox(height: 16),
                       Text(
                         'Scan a food barcode',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -151,12 +144,8 @@ class _ScanScreenState extends State<ScanScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
                       'OR',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                   const Expanded(child: Divider()),
@@ -167,12 +156,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
               Text(
                 'Enter barcode manually',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
 
               const SizedBox(height: 10),
@@ -208,8 +193,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 width: double.infinity,
                 height: 54,
                 child: FilledButton.icon(
-                  onPressed:
-                      _isAnalyzing ? null : _analyzeProduct,
+                  onPressed: _isAnalyzing ? null : _analyzeProduct,
                   icon: _isAnalyzing
                       ? const SizedBox(
                           width: 20,
@@ -221,9 +205,7 @@ class _ScanScreenState extends State<ScanScreen> {
                         )
                       : const Icon(Icons.analytics_outlined),
                   label: Text(
-                    _isAnalyzing
-                        ? 'Analyzing...'
-                        : 'Analyze Product',
+                    _isAnalyzing ? 'Analyzing...' : 'Analyze Product',
                   ),
                 ),
               ),
@@ -243,234 +225,554 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 }
 
-
 /*
  * Temporary result screen.
  *
  * This will later be replaced with the real assessment
  * returned by the backend API.
  */
-class AssessmentPreviewScreen extends StatelessWidget {
+class AssessmentPreviewScreen extends StatefulWidget {
   const AssessmentPreviewScreen({
     super.key,
     required this.barcode,
     required this.assessment,
+    required this.recommendations,
+    this.aiExplanation,
   });
 
   final String barcode;
   final Map<String, dynamic> assessment;
+  final List<dynamic> recommendations;
+  final Map<String, dynamic>? aiExplanation;
 
-@override
-Widget build(BuildContext context) {
-  final overallStatus =
-      assessment['overallStatus']?.toString() ?? 'NO_WARNING';
+  @override
+  State<AssessmentPreviewScreen> createState() =>
+      _AssessmentPreviewScreenState();
+}
 
-  final summary =
-      assessment['summary']?.toString() ?? '';
+class _AssessmentPreviewScreenState extends State<AssessmentPreviewScreen> {
+  bool _isAddingToDailyIntake = false;
 
-  final product =
-      assessment['product'] as Map<String, dynamic>? ?? {};
+  Future<void> _showQuantityDialog() async {
+    final product = widget.assessment['product'] as Map<String, dynamic>? ?? {};
+    final basis = product['nutritionBasis']?.toString();
+    final serving = product['serving'] as Map<String, dynamic>? ?? {};
+    final servingSizeValue = serving['size'];
+    final servingSize = servingSizeValue is num
+        ? servingSizeValue.toDouble()
+        : double.tryParse(servingSizeValue?.toString() ?? '');
+    final servingUnit = serving['unit']?.toString().trim().toLowerCase();
+    final requiredUnit = basis == 'PER_100G'
+        ? 'g'
+        : basis == 'PER_100ML'
+        ? 'ml'
+        : null;
+    final needsCustomAmount =
+        requiredUnit != null &&
+        (servingSize == null ||
+            !servingSize.isFinite ||
+            servingSize <= 0 ||
+            servingUnit != requiredUnit);
 
-  final nutrition =
-      product['nutrition'] as Map<String, dynamic>? ?? {};
+    if (basis != 'PER_SERVING' && requiredUnit == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot add intake because the product has no supported nutrition basis.',
+          ),
+        ),
+      );
+      return;
+    }
 
-  final serving =
-      product['serving'] as Map<String, dynamic>? ?? {};
+    double selectedQuantity = 1;
+    var customAmountText = '';
+    String? amountError;
 
-  final ingredients =
-      product['ingredients'] as Map<String, dynamic>? ?? {};
+    final intake =
+        await showDialog<({double quantity, double? amount, String? unit})>(
+          context: context,
+          builder: (dialogContext) {
+            return StatefulBuilder(
+              builder: (dialogContext, setDialogState) {
+                return AlertDialog(
+                  title: const Text('Add to Daily Intake'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (needsCustomAmount) ...[
+                        Text('Enter the amount consumed in $requiredUnit.'),
+                        const SizedBox(height: 12),
+                        TextField(
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Consumed amount',
+                            suffixText: requiredUnit,
+                            errorText: amountError,
+                          ),
+                          onChanged: (value) {
+                            customAmountText = value;
+                            if (amountError != null) {
+                              setDialogState(() {
+                                amountError = null;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ] else ...[
+                        const Text('How many servings did you consume?'),
+                        const SizedBox(height: 16),
+                      ],
 
-  final foodComponents =
-      product['foodComponents'] as List<dynamic>? ?? [];
+                      if (!needsCustomAmount) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              onPressed: selectedQuantity <= 0.5
+                                  ? null
+                                  : () {
+                                      setDialogState(() {
+                                        selectedQuantity -= 0.5;
+                                      });
+                                    },
+                              icon: const Icon(Icons.remove),
+                            ),
 
-  final allergens =
-      product['allergens'] as List<dynamic>? ?? [];
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: Text(
+                                selectedQuantity % 1 == 0
+                                    ? selectedQuantity.toInt().toString()
+                                    : selectedQuantity.toString(),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
 
-  final allergyFindings =
-      assessment['allergyFindings'] as List<dynamic>? ?? [];
-
-  final nutritionFindings =
-      assessment['nutritionFindings'] as List<dynamic>? ?? [];
-
-  final productName =
-      product['productName']?.toString() ?? 'Unknown product';
-
-  final brand =
-      product['brand']?.toString() ?? '';
-
-  final barcode =
-      product['barcode']?.toString() ?? this.barcode;
-
-  final nutritionBasis =
-      product['nutritionBasis']?.toString() ?? '';
-
-  final servingSize = serving['size'];
-  final servingUnit =
-      serving['unit']?.toString() ?? '';
-
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Food Details'),
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            // --------------------------------------------------
-            // PRODUCT HEADER
-            // --------------------------------------------------
-
-            Text(
-              productName,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(
-                    fontWeight: FontWeight.w800,
+                            IconButton(
+                              onPressed: () {
+                                setDialogState(() {
+                                  selectedQuantity += 0.5;
+                                });
+                              },
+                              icon: const Icon(Icons.add),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'You can select 0.5, 1, 1.5, 2 servings, etc.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ],
                   ),
-            ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                      },
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        final amount = needsCustomAmount
+                            ? double.tryParse(customAmountText.trim())
+                            : null;
 
-            if (brand.isNotEmpty) ...[
-              const SizedBox(height: 6),
+                        if (needsCustomAmount &&
+                            (amount == null ||
+                                !amount.isFinite ||
+                                amount <= 0)) {
+                          setDialogState(() {
+                            amountError = 'Enter an amount greater than zero.';
+                          });
+                          return;
+                        }
+
+                        Navigator.pop(dialogContext, (
+                          quantity: selectedQuantity,
+                          amount: amount,
+                          unit: needsCustomAmount ? requiredUnit : null,
+                        ));
+                      },
+                      child: const Text('Add'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+
+    if (intake == null) {
+      return;
+    }
+
+    await _addToDailyIntake(
+      intake.quantity,
+      consumedAmount: intake.amount,
+      consumedUnit: intake.unit,
+    );
+  }
+
+  Future<void> _addToDailyIntake(
+    double quantity, {
+    double? consumedAmount,
+    String? consumedUnit,
+  }) async {
+    setState(() {
+      _isAddingToDailyIntake = true;
+    });
+
+    try {
+      await AssessmentService.recordConsumption(
+        barcode: widget.barcode,
+        quantity: quantity,
+        consumedAmount: consumedAmount,
+        consumedUnit: consumedUnit,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Food added to today\'s intake.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to add food: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAddingToDailyIntake = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, dynamic> assessment = widget.assessment;
+    final recommendations = widget.recommendations;
+    final overallStatus =
+        assessment['overallStatus']?.toString() ?? 'NO_WARNING';
+
+    final summary = assessment['summary']?.toString() ?? '';
+
+    final product = assessment['product'] as Map<String, dynamic>? ?? {};
+
+    final nutrition = product['nutrition'] as Map<String, dynamic>? ?? {};
+
+    final serving = product['serving'] as Map<String, dynamic>? ?? {};
+
+    final ingredients = product['ingredients'] as Map<String, dynamic>? ?? {};
+
+    final foodComponents = product['foodComponents'] as List<dynamic>? ?? [];
+
+    final allergens = product['allergens'] as List<dynamic>? ?? [];
+
+    final allergyFindings =
+        assessment['allergyFindings'] as List<dynamic>? ?? [];
+
+    final nutritionFindings =
+        assessment['nutritionFindings'] as List<dynamic>? ?? [];
+
+    final productName = product['productName']?.toString() ?? 'Unknown product';
+
+    final brand = product['brand']?.toString() ?? '';
+
+    final barcode = product['barcode']?.toString() ?? widget.barcode;
+
+    final nutritionBasis = product['nutritionBasis']?.toString() ?? '';
+
+    final servingSize = serving['size'];
+    final servingUnit = serving['unit']?.toString() ?? '';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Food Details')),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --------------------------------------------------
+              // PRODUCT HEADER
+              // --------------------------------------------------
+
               Text(
-                brand,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge,
+                productName,
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
-            ],
 
-            const SizedBox(height: 20),
+              if (brand.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(brand, style: Theme.of(context).textTheme.bodyLarge),
+              ],
 
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-                    _InfoRow(
-                      label: 'Barcode',
-                      value: barcode,
-                    ),
-                    const SizedBox(height: 10),
-                    _InfoRow(
-                      label: 'Basis',
-                      value: _formatBasis(nutritionBasis),
-                    ),
-                  ],
+              const SizedBox(height: 20),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    children: [
+                      _InfoRow(label: 'Barcode', value: barcode),
+                      const SizedBox(height: 10),
+                      _InfoRow(
+                        label: 'Basis',
+                        value: _formatBasis(nutritionBasis),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // --------------------------------------------------
-            // NUTRITION
-            // --------------------------------------------------
-
-            const SizedBox(height: 28),
-
-            _SectionTitle(
-              title: 'Nutrition',
-              icon: Icons.monitor_heart_outlined,
-            ),
-
-            const SizedBox(height: 6),
-
-            Text(
-              _formatBasis(nutritionBasis),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall,
-            ),
-
-            const SizedBox(height: 12),
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-                    _NutritionRow(
-                      label: 'Calories',
-                      value: nutrition['calories'],
-                      unit: 'kcal',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Protein',
-                      value: nutrition['protein'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Carbohydrates',
-                      value: nutrition['carbohydrates'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Sugars',
-                      value: nutrition['sugars'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Total Fat',
-                      value: nutrition['totalFat'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Saturated Fat',
-                      value: nutrition['saturatedFat'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Fiber',
-                      value: nutrition['fiber'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Sodium',
-                      value: nutrition['sodium'],
-                      unit: 'mg',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Cholesterol',
-                      value: nutrition['cholesterol'],
-                      unit: 'mg',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Iron',
-                      value: nutrition['iron'],
-                      unit: 'g',
-                    ),
-
-                    _NutritionRow(
-                      label: 'Calcium',
-                      value: nutrition['calcium'],
-                      unit: 'g',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // --------------------------------------------------
-            // SERVING
-            // --------------------------------------------------
-
-            if (servingSize != null) ...[
+              // --------------------------------------------------
+              // NUTRITION
+              // --------------------------------------------------
               const SizedBox(height: 28),
 
               _SectionTitle(
-                title: 'Serving Information',
-                icon: Icons.restaurant_outlined,
+                title: 'Nutrition',
+                icon: Icons.monitor_heart_outlined,
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                _formatBasis(nutritionBasis),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+
+              const SizedBox(height: 12),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    children: [
+                      _NutritionRow(
+                        label: 'Calories',
+                        value: nutrition['calories'],
+                        unit: 'kcal',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Protein',
+                        value: nutrition['protein'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Carbohydrates',
+                        value: nutrition['carbohydrates'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Sugars',
+                        value: nutrition['sugars'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Total Fat',
+                        value: nutrition['totalFat'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Saturated Fat',
+                        value: nutrition['saturatedFat'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Fiber',
+                        value: nutrition['fiber'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Sodium',
+                        value: nutrition['sodium'],
+                        unit: 'mg',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Cholesterol',
+                        value: nutrition['cholesterol'],
+                        unit: 'mg',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Iron',
+                        value: nutrition['iron'],
+                        unit: 'g',
+                      ),
+
+                      _NutritionRow(
+                        label: 'Calcium',
+                        value: nutrition['calcium'],
+                        unit: 'g',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // --------------------------------------------------
+              // SERVING
+              // --------------------------------------------------
+              const SizedBox(height: 20),
+
+              // AI-GENERATED NUTRITION EXPLANATION
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.auto_awesome),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'AI Nutrition Explanation',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      if (widget.aiExplanation?['explanation']
+                              ?.toString()
+                              .trim()
+                              .isNotEmpty ??
+                          false)
+                        Text(widget.aiExplanation!['explanation'].toString())
+                      else
+                        const Text(
+                          'AI explanation is currently unavailable. '
+                          'Your rule-based assessment above is still available.',
+                        ),
+
+                      if (widget.aiExplanation?['keyPoints'] is List &&
+                          (widget.aiExplanation!['keyPoints'] as List)
+                              .isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Key Points',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        ...((widget.aiExplanation!['keyPoints'] as List)
+                            .where(
+                              (point) =>
+                                  point != null &&
+                                  point.toString().trim().isNotEmpty,
+                            )
+                            .map<Widget>(
+                              (point) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('• '),
+                                    Expanded(child: Text(point.toString())),
+                                  ],
+                                ),
+                              ),
+                            )),
+                      ],
+
+                      if (widget.aiExplanation?['sources'] is List &&
+                          (widget.aiExplanation!['sources'] as List)
+                              .isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Sources returned by AI',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        ...((widget.aiExplanation!['sources'] as List)
+                            .whereType<Map>()
+                            .map<Widget>((source) {
+                              final name = source['name']?.toString();
+                              final reference = source['reference']?.toString();
+                              final version = source['version']?.toString();
+
+                              final details = [reference, version]
+                                  .whereType<String>()
+                                  .where((value) => value.trim().isNotEmpty)
+                                  .join(' • ');
+
+                              final sourceText = [name, details]
+                                  .whereType<String>()
+                                  .where((value) => value.trim().isNotEmpty)
+                                  .join(' — ');
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  '• ${sourceText.isEmpty ? 'Source details unavailable' : sourceText}',
+                                ),
+                              );
+                            })),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              if (servingSize != null) ...[
+                const SizedBox(height: 28),
+
+                _SectionTitle(
+                  title: 'Serving Information',
+                  icon: Icons.restaurant_outlined,
+                ),
+
+                const SizedBox(height: 12),
+
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Text(
+                      '${_formatNumber(servingSize)} $servingUnit',
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+
+              // --------------------------------------------------
+              // INGREDIENTS
+              // --------------------------------------------------
+              const SizedBox(height: 28),
+
+              _SectionTitle(
+                title: 'Ingredients',
+                icon: Icons.list_alt_outlined,
               ),
 
               const SizedBox(height: 12),
@@ -479,231 +781,225 @@ Widget build(BuildContext context) {
                 child: Padding(
                   padding: const EdgeInsets.all(18),
                   child: Text(
-                    '${_formatNumber(servingSize)} $servingUnit',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    ingredients['text']?.toString() ??
+                        'Ingredient information is not available.',
                   ),
                 ),
               ),
-            ],
 
-            // --------------------------------------------------
-            // INGREDIENTS
-            // --------------------------------------------------
+              // --------------------------------------------------
+              // FOOD COMPONENTS
+              // --------------------------------------------------
+              if (foodComponents.isNotEmpty) ...[
+                const SizedBox(height: 28),
 
-            const SizedBox(height: 28),
-
-            _SectionTitle(
-              title: 'Ingredients',
-              icon: Icons.list_alt_outlined,
-            ),
-
-            const SizedBox(height: 12),
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Text(
-                  ingredients['text']?.toString() ??
-                      'Ingredient information is not available.',
+                _SectionTitle(
+                  title: 'Detected Food Components',
+                  icon: Icons.category_outlined,
                 ),
-              ),
-            ),
 
-            // --------------------------------------------------
-            // FOOD COMPONENTS
-            // --------------------------------------------------
+                const SizedBox(height: 12),
 
-            if (foodComponents.isNotEmpty) ...[
-              const SizedBox(height: 28),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: foodComponents
+                      .map(
+                        (component) => Chip(
+                          avatar: const Icon(
+                            Icons.check_circle_outline,
+                            size: 18,
+                          ),
+                          label: Text(_formatComponent(component.toString())),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+
+              // --------------------------------------------------
+              // DECLARED ALLERGENS
+              // --------------------------------------------------
+              if (allergens.isNotEmpty) ...[
+                const SizedBox(height: 28),
+
+                _SectionTitle(
+                  title: 'Declared Allergens',
+                  icon: Icons.warning_amber_outlined,
+                ),
+
+                const SizedBox(height: 12),
+
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: allergens
+                      .map(
+                        (allergen) => Chip(
+                          label: Text(_formatComponent(allergen.toString())),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+
+              // --------------------------------------------------
+              // PERSONALIZED ASSESSMENT
+              // --------------------------------------------------
+              const SizedBox(height: 32),
 
               _SectionTitle(
-                title: 'Detected Food Components',
-                icon: Icons.category_outlined,
+                title: 'Personalized Assessment',
+                icon: Icons.auto_awesome_rounded,
               ),
 
               const SizedBox(height: 12),
 
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: foodComponents
-                    .map(
-                      (component) => Chip(
-                        avatar: const Icon(
-                          Icons.check_circle_outline,
-                          size: 18,
-                        ),
-                        label: Text(
-                          _formatComponent(
-                            component.toString(),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: _statusBackgroundColor(overallStatus),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(_statusIcon(overallStatus), size: 48),
+
+                    const SizedBox(height: 14),
+
+                    Text(
+                      _formatStatus(overallStatus),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Text(summary),
+                  ],
+                ),
               ),
-            ],
 
-            // --------------------------------------------------
-            // DECLARED ALLERGENS
-            // --------------------------------------------------
+              // --------------------------------------------------
+              // FINDINGS
+              // --------------------------------------------------
+              if (allergyFindings.isNotEmpty) ...[
+                const SizedBox(height: 20),
 
-            if (allergens.isNotEmpty) ...[
+                Text(
+                  'Allergy Findings',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+
+                const SizedBox(height: 10),
+
+                ...allergyFindings.map(
+                  (finding) => _FindingCard(
+                    icon: Icons.warning_amber_rounded,
+                    title: finding['allergy']?.toString() ?? 'Allergy detected',
+                    subtitle:
+                        finding['message']?.toString() ??
+                        'Allergy component detected.',
+                  ),
+                ),
+              ],
+
+              if (nutritionFindings.isNotEmpty) ...[
+                const SizedBox(height: 20),
+
+                Text(
+                  'Nutrition Findings',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+
+                const SizedBox(height: 10),
+
+                ...nutritionFindings.map(
+                  (finding) => _FindingCard(
+                    icon: Icons.analytics_outlined,
+                    title: finding['nutrient']?.toString() ?? 'Nutrition rule',
+                    subtitle:
+                        finding['message']?.toString() ??
+                        'Nutrition rule triggered.',
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 28),
+              if (recommendations.isNotEmpty) ...[
+                const SizedBox(height: 28),
 
-              _SectionTitle(
-                title: 'Declared Allergens',
-                icon: Icons.warning_amber_outlined,
+                const _SectionTitle(
+                  title: 'Personalized Recommendation',
+                  icon: Icons.lightbulb_outline_rounded,
+                ),
+
+                const SizedBox(height: 12),
+
+                ...recommendations.map((recommendation) {
+                  final priority =
+                      recommendation['priority']?.toString() ?? 'INFO';
+
+                  final action = recommendation['action']?.toString() ?? 'INFO';
+
+                  final message = recommendation['message']?.toString() ?? '';
+
+                  final reason = recommendation['reason']?.toString();
+
+                  return _RecommendationCard(
+                    priority: priority,
+                    action: action,
+                    message: message,
+                    reason: reason,
+                  );
+                }),
+              ],
+              const Text(
+                'This assessment uses the available product '
+                'information and your saved health profile. '
+                'Missing information is not treated as zero.',
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
 
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: allergens
-                    .map(
-                      (allergen) => Chip(
-                        label: Text(
-                          _formatComponent(
-                            allergen.toString(),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: FilledButton.icon(
+                  onPressed: _isAddingToDailyIntake
+                      ? null
+                      : _showQuantityDialog,
+                  icon: _isAddingToDailyIntake
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-
-            // --------------------------------------------------
-            // PERSONALIZED ASSESSMENT
-            // --------------------------------------------------
-
-            const SizedBox(height: 32),
-
-            _SectionTitle(
-              title: 'Personalized Assessment',
-              icon: Icons.auto_awesome_rounded,
-            ),
-
-            const SizedBox(height: 12),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: _statusBackgroundColor(
-                  overallStatus,
-                ),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    _statusIcon(overallStatus),
-                    size: 48,
+                        )
+                      : const Icon(Icons.add_circle_outline),
+                  label: Text(
+                    _isAddingToDailyIntake
+                        ? 'Adding...'
+                        : 'Add to Daily Intake',
                   ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    _formatStatus(overallStatus),
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(summary),
-                ],
-              ),
-            ),
-
-            // --------------------------------------------------
-            // FINDINGS
-            // --------------------------------------------------
-
-            if (allergyFindings.isNotEmpty) ...[
-              const SizedBox(height: 20),
-
-              Text(
-                'Allergy Findings',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-
-              const SizedBox(height: 10),
-
-              ...allergyFindings.map(
-                (finding) => _FindingCard(
-                  icon: Icons.warning_amber_rounded,
-                  title: finding['allergy']?.toString() ??
-                      'Allergy detected',
-                  subtitle:
-                      finding['message']?.toString() ??
-                          'Allergy component detected.',
                 ),
               ),
-            ],
 
-            if (nutritionFindings.isNotEmpty) ...[
               const SizedBox(height: 20),
-
-              Text(
-                'Nutrition Findings',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-
-              const SizedBox(height: 10),
-
-              ...nutritionFindings.map(
-                (finding) => _FindingCard(
-                  icon: Icons.analytics_outlined,
-                  title: finding['nutrient']?.toString() ??
-                      'Nutrition rule',
-                  subtitle:
-                      finding['message']?.toString() ??
-                          'Nutrition rule triggered.',
-                ),
-              ),
             ],
-
-            const SizedBox(height: 28),
-
-            const Text(
-              'This assessment uses the available product '
-              'information and your saved health profile. '
-              'Missing information is not treated as zero.',
-            ),
-
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
-}
+
 String _formatStatus(String status) {
   switch (status) {
     case 'AVOID':
@@ -717,12 +1013,8 @@ String _formatStatus(String status) {
   }
 }
 
-
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -736,19 +1028,14 @@ class _InfoRow extends StatelessWidget {
           width: 80,
           child: Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-        Expanded(
-          child: Text(value),
-        ),
+        Expanded(child: Text(value)),
       ],
     );
   }
 }
-
 
 class _FindingCard extends StatelessWidget {
   const _FindingCard({
@@ -777,9 +1064,7 @@ class _FindingCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 6),
                   Text(subtitle),
@@ -792,11 +1077,62 @@ class _FindingCard extends StatelessWidget {
     );
   }
 }
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.icon,
+
+class _RecommendationCard extends StatelessWidget {
+  const _RecommendationCard({
+    required this.priority,
+    required this.action,
+    required this.message,
+    this.reason,
   });
+
+  final String priority;
+  final String action;
+  final String message;
+  final String? reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _recommendationIcon(action),
+                  color: _recommendationColor(priority),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  action,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: _recommendationColor(priority),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            Text(message),
+
+            if (reason != null && reason!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(reason!, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title, required this.icon});
 
   final String title;
   final IconData icon;
@@ -805,25 +1141,17 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: AppTheme.primaryGreen,
-        ),
+        Icon(icon, color: AppTheme.primaryGreen),
         const SizedBox(width: 10),
         Text(
           title,
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
       ],
     );
   }
 }
-
 
 class _NutritionRow extends StatelessWidget {
   const _NutritionRow({
@@ -846,14 +1174,10 @@ class _NutritionRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Expanded(
-            child: Text(label),
-          ),
+          Expanded(child: Text(label)),
           Text(
             '${_formatNumber(value)} $unit',
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -879,7 +1203,6 @@ String _formatNumber(dynamic value) {
   return number.toStringAsFixed(2);
 }
 
-
 String _formatBasis(String basis) {
   switch (basis) {
     case 'PER_100G':
@@ -896,7 +1219,6 @@ String _formatBasis(String basis) {
   }
 }
 
-
 String _formatComponent(String value) {
   return value
       .replaceAll('-', ' ')
@@ -909,7 +1231,6 @@ String _formatComponent(String value) {
       )
       .join(' ');
 }
-
 
 Color _statusBackgroundColor(String status) {
   switch (status) {
@@ -924,7 +1245,6 @@ Color _statusBackgroundColor(String status) {
   }
 }
 
-
 IconData _statusIcon(String status) {
   switch (status) {
     case 'AVOID':
@@ -935,5 +1255,34 @@ IconData _statusIcon(String status) {
 
     default:
       return Icons.check_circle_outline_rounded;
+  }
+}
+
+IconData _recommendationIcon(String action) {
+  switch (action) {
+    case 'AVOID':
+      return Icons.warning_rounded;
+
+    case 'LIMIT':
+      return Icons.info_outline_rounded;
+
+    case 'PREFER':
+      return Icons.check_circle_outline_rounded;
+
+    default:
+      return Icons.lightbulb_outline_rounded;
+  }
+}
+
+Color _recommendationColor(String priority) {
+  switch (priority) {
+    case 'CRITICAL':
+      return Colors.red;
+
+    case 'WARNING':
+      return Colors.orange;
+
+    default:
+      return AppTheme.primaryGreen;
   }
 }

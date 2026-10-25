@@ -13,18 +13,9 @@ class AuthService {
   Future<String?> getIdToken() async {
   final user = _firebaseAuth.currentUser;
 
-  if (user == null) {
-    print('No Firebase user is currently signed in.');
-    return null;
-  }
+  if (user == null) return null;
 
   final token = await user.getIdToken(true);
-
-  print('========== FIREBASE ID TOKEN ==========');
-  print(token);
-  print('Token parts: ${token?.split('.').length}');
-  print('Token length: ${token?.length}');
-  print('=======================================');
 
   return token;
 }
