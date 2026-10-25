@@ -5,6 +5,8 @@ import '../../models/nutrition_summary.dart';
 import '../../widgets/nutrition_overview.dart';
 import '../scan/scan_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../services/daily_nutrition_service.dart';
+import '../history/history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.embedded = false});
@@ -25,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : _tab == 1
               ? const ScanScreen()
               : _tab == 2
-                  ? const _PlaceholderPage(tab: 2)
+                  ? const HistoryScreen()
                   : const ProfileScreen(),
     ),
         bottomNavigationBar: NavigationBar(
@@ -40,9 +42,78 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 }
-
-class _Dashboard extends StatelessWidget {
+class _Dashboard extends StatefulWidget {
   const _Dashboard();
+
+  @override
+  State<_Dashboard> createState() => _DashboardState();
+}
+
+class _DashboardState extends State<_Dashboard> {
+  Map<String, dynamic>? _dailyNutrition;
+  bool _isLoadingNutrition = true;
+  String? _nutritionError;
+  String? _assessmentError;
+  Map<String, dynamic>? _dailyAssessment;
+
+
+  Future<void> _loadDailyNutrition() async {
+    final today = DateTime.now();
+    final date =
+        '${today.year.toString().padLeft(4, '0')}-'
+        '${today.month.toString().padLeft(2, '0')}-'
+        '${today.day.toString().padLeft(2, '0')}';
+
+    // Load nutrition independently.
+    try {
+      final result =
+          await DailyNutritionService.getDailyNutrition(date: date);
+
+      if (!mounted) return;
+
+      setState(() {
+        _dailyNutrition = result['dailyNutrition'];
+        _isLoadingNutrition = false;
+        _nutritionError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoadingNutrition = false;
+        _nutritionError =
+            error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+
+    // A failed assessment must not hide successfully loaded nutrition.
+    try {
+      final result =
+          await DailyNutritionService.getDailyAssessment(date: date);
+
+      if (!mounted) return;
+
+      setState(() {
+        _dailyAssessment = result['dailyAssessment'];
+        _assessmentError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _dailyAssessment = null;
+        _assessmentError =
+            error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+
+  @override
+    void initState() {
+      super.initState();
+      _loadDailyNutrition();
+    }
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
@@ -73,19 +144,90 @@ class _Dashboard extends StatelessWidget {
           const SizedBox(height: 28),
           Text("Today's nutrition", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          const NutritionOverview(summary: NutritionSummary(calories: 860, protein: 34, sugar: 21)),
-          const SizedBox(height: 28),
+          if (_isLoadingNutrition)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            )
+          else if (_nutritionError != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Unable to load today\'s nutrition',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(_nutritionError!),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: _loadDailyNutrition,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+          NutritionOverview(
+            summary: NutritionSummary(
+              calories:
+                  (_dailyNutrition?['totals']?['calories'] as num?)?.round(),
+              protein:
+                  (_dailyNutrition?['totals']?['protein'] as num?)?.round(),
+              carbohydrates:
+                  (_dailyNutrition?['totals']?['carbohydrates'] as num?)?.round(),
+              sugar:
+                  (_dailyNutrition?['totals']?['sugars'] as num?)?.round(),
+              fiber:
+                  (_dailyNutrition?['totals']?['fiber'] as num?)?.round(),
+              sodium:
+                  (_dailyNutrition?['totals']?['sodium'] as num?)?.round(),
+            ),
+          ),
+            const SizedBox(height: 28),
           Text("Today's insight", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          const Card(
+          Card(
             color: AppTheme.paleGreen,
             child: Padding(
-              padding: EdgeInsets.all(18),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(Icons.lightbulb_outline_rounded, color: AppTheme.primaryGreen),
-                SizedBox(width: 12),
-                Expanded(child: Text('You are close to your daily sugar limit. Choose a low-sugar snack if you scan one today.')),
-              ]),
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.lightbulb_outline_rounded,
+                    color: AppTheme.primaryGreen,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child:
+                          Text(
+                            _assessmentError != null
+                                ? 'Unable to load today\'s nutrition assessment. Please try refreshing.'
+                                : (_dailyAssessment?['primaryInsight']?['message']
+                                            ?.toString()
+                                            .trim()
+                                            .isNotEmpty ==
+                                        true)
+                                    ? _dailyAssessment!['primaryInsight']['message'].toString()
+                                    : _dailyAssessment == null
+                                        ? 'Your nutrition insight is not available yet.'
+                                        : 'No nutrition concern was detected for today.',
+                          ),
+
+                  ),
+                ],
+              ),
             ),
           ),
         ]),
